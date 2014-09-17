@@ -1,28 +1,5 @@
-Heroku buildpack: Ruby + precompiled pdftk
+Heroku buildpack: Ruby
 ======================
-How to install:
-
-1) Download PDFTK source (compiled for Heroku's Cedar Stack) from http://github.com/millie/pdftk-source
-
-2) Upload the tar.gz to your own S3 bucket.  Make it public.  Remember the S3 URL of the tar.gz file.
-
-3) Clone this repo to your own.
-
-4) In lib/custom/pdftk.rb, update source_url to reflect the S3 URL of your tar.gz file.  Update your repo.
-
-5) In your Heroku app, run 
-
-    heroku config:add BUILDPACK_URL=https://github.com/user/repo-name
-
-6) Add config vars to heroku like so
-
-	heroku config:set \
-	PATH=[your current PATH var]:/app/vendor/pdftk/bin \
-	LD_LIBRARY_PATH=[your current LD_LIBRARY_PATH var (if you have set before)]:/app/vendor/pdftk/lib
-
-
----
-
 
 This is a [Heroku buildpack](http://devcenter.heroku.com/articles/buildpacks) for Ruby, Rack, and Rails apps. It uses [Bundler](http://gembundler.com) for dependency management.
 
@@ -55,6 +32,32 @@ Example Usage:
            Default types for Ruby  -> console, rake
 
 The buildpack will detect your app as Ruby if it has a `Gemfile` and `Gemfile.lock` files in the root directory. It will then proceed to run `bundle install` after setting up the appropriate environment for [ruby](http://ruby-lang.org) and [Bundler](http://gembundler.com).
+
+#### Run the Tests
+
+The tests on this buildpack are written in Rspec to allow the use of
+`focused: true`. Parallelization of testing is provided by
+https://github.com/grosser/parallel_tests this lib spins up an arbitrary
+number of processes and running a different test file in each process,
+it does not parallelize tests within a test file. To run the tests: clone the repo, then `bundle install` then clone the test fixtures by running:
+
+```sh
+$ hatchet install
+```
+
+Now run the tests:
+
+```sh
+$ bundle exec parallel_rspec -n 6 spec/
+```
+
+If you don't want to run them in parallel you can still:
+
+```sh
+$ bundle exec rake spec
+```
+
+Now go take a nap or something for a really long time.
 
 #### Bundler
 
@@ -133,7 +136,7 @@ Hacking
 
 To use this buildpack, fork it on Github.  Push up changes to your fork, then create a test app with `--buildpack <your-github-url>` and push to it.
 
-To change the vendored binaries for Bundler, [Node.js](http://github.com/joyent/node), and rails plugins, use the rake tasks provided by the `Rakefile`. You'll need an S3-enabled AWS account and a bucket to store your binaries in as well as the [vulcan](http://github.com/ddollar/vulcan) gem to build the binaries on heroku.
+To change the vendored binaries for Bundler, [Node.js](http://github.com/joyent/node), and rails plugins, use the rake tasks provided by the `Rakefile`. You'll need an S3-enabled AWS account and a bucket to store your binaries in as well as the [vulcan](http://github.com/heroku/vulcan) gem to build the binaries on heroku.
 
 For example, you can change the vendored version of Bundler to 1.1.rc.
 

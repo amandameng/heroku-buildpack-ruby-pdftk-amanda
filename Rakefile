@@ -1,5 +1,6 @@
 require "fileutils"
 require "tmpdir"
+require 'hatchet/tasks'
 
 S3_BUCKET_NAME  = "heroku-buildpack-ruby"
 VENDOR_URL      = "https://s3.amazonaws.com/#{S3_BUCKET_NAME}"
@@ -54,6 +55,7 @@ def install_gem(gem, version)
 end
 
 def build_ruby_command(name, output, prefix, usr_dir, tmpdir, rubygems = nil)
+  vulcan_prefix = "/app/vendor/#{output}"
   build_command = [
     # need to move libyaml/libffi to dirs we can see
     "mv #{usr_dir} /tmp",
@@ -65,7 +67,7 @@ def build_ruby_command(name, output, prefix, usr_dir, tmpdir, rubygems = nil)
   build_command << "mv #{prefix} /app/vendor/#{output}" if prefix != "/app/vendor/#{output}"
   build_command = build_command.join(" && ")
 
-  sh "vulcan build -v -o #{output}.tgz --prefix #{prefix} --source #{name} --command=\"#{build_command}\""
+  sh "vulcan build -v -o #{output}.tgz --prefix #{vulcan_prefix} --source #{name} --command=\"#{build_command}\""
   s3_upload(tmpdir, output)
 end
 
@@ -143,7 +145,7 @@ task "node:install", :version do |t, args|
         "rm -rf #{prefix}/bin"
       ].join(" && ")
 
-      sh "vulcan build -v -o #{name}.tgz --source node-v#{version} --command=\"#{build_command}\""
+      sh "vulcan build -v -o #{name}.tgz --source node-v#{version} --command=\"#{build_command}\" --prefix=\"#{prefix}\""
       s3_upload(tmpdir, name)
     end
   end
@@ -178,7 +180,7 @@ task "ruby:install", :version do |t, args|
       # build ruby
       if major_ruby == "1.8"
         output  = "ruby-build-#{version}"
-        prefix  = "/app/vendor/ruby-build-#{version}"
+        prefix  = "/tmp/ruby-#{version}"
         build_ruby_command(full_name, output, prefix, usr_dir, tmpdir, rubygems)
       end
     end
@@ -342,4 +344,16 @@ task "libffi:install", :version do |t, args|
       s3_upload(tmpdir, name)
     end
   end
+end
+
+begin
+  require 'rspec/core/rake_task'
+
+  desc "Run specs"
+  RSpec::Core::RakeTask.new(:spec) do |t|
+    t.rspec_opts = %w(-fs --color)
+    #t.ruby_opts  = %w(-w)
+  end
+  task :default => :spec
+rescue LoadError => e
 end
